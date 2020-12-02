@@ -1,30 +1,4 @@
-#include <stdio.h>
-#include <stdint.h>
-#include <math.h>
-#include <stdlib.h>
-
-#if UINTPTR_MAX == 0xffffffff
-#define WLEN 4
-#define WCONT 256
-#elif UINTPTR_MAX == 0xffffffffffffffff
-#define WLEN 8
-#define WCONT 65536
-#else
-/* AHHHHH */
-#endif
-
-struct index_tracker {
-    unsigned int *idx;
-    unsigned int count;
-};
-
-void fill_frequency_table(unsigned char *ref, int ref_size);
-int preprocessing(unsigned char *pattern, unsigned int pattern_size);
-void windowing(int min_index, unsigned char *text, unsigned int text_size, unsigned char *pattern, unsigned int pattern_size, struct index_tracker *windows);
-void matching(unsigned char *text, unsigned char *pattern, unsigned int pattern_size, struct index_tracker *windows, struct index_tracker *matches);
-
-static unsigned short freq_tab[WCONT][WLEN+1] = {0};
-static unsigned char *reference_seq = "ACAAGATGCCATTGTCCCCCGGCCTCCTGCTGCTGCTGCTCTCCGGGGCCACGGCCACCGCTGCCCTGCCCCTGGAGGGTGGCCCCACCGGCCGAGACAGCGAGCATATGCAGGAAGCGGCAGGAATAAGGAAAAGCAGCCTCCTGACTTTCCTCGCTTGGTGGTTTGAGTGGACCTCCCAGGCCAGTGCCGGGCCCCTCATAGGAGAGGAAGCTCGGGAGGTGGCCAGGCGGCAGGAAGGCGCACCCCCCCAGCAATCCGCGCGCCGGGACAGAATGCCCTGCAGGAACTTCTTCTGGAAGACCTTCTCCTCCTGCAAATAAAACCTCACCCATGAATGCTCACGCAAGTTTAATTACAGACCTGAA";
+#include "P_LFMP.h"
 
 int int_pow(int b, int e)
 {
@@ -34,11 +8,16 @@ int int_pow(int b, int e)
     return r;
 }
 
-void main()
+void fill_frequency_table(unsigned char *ref, int ref_size)
 {
     unsigned char alphabet[] = {'A','C','G','T'};
-
+    
+    #if WLEN == 8
     unsigned int multi[] = {16384,4096,1024,256,64,16,4,1};
+    #elif WLEN == 4
+    unsigned int multi[] = {256,64,16,4,1};
+    #endif
+
     for(int i=0; i<WLEN; i++)
     {
         for(int j=0; j<WCONT; j++)
@@ -47,41 +26,6 @@ void main()
         }
     }
 
-    fill_frequency_table(reference_seq, 369);
-
-    for(int i=0; i<WCONT; i++)
-    {
-        for(int j=0; j<WLEN; j++)
-        {   
-            if(freq_tab[i][WLEN]>0)
-                printf("%c",freq_tab[i][j]);
-        }
-        if(freq_tab[i][WLEN]>0)
-        {
-            printf(" %d ---",freq_tab[i][WLEN]);
-            printf("\n");
-        }
-    }
-
-    struct index_tracker windows = {NULL,0};
-    struct index_tracker matches = {NULL,0};
-  
-    unsigned char *pattern = "CTGCTGCTG\0";
-    unsigned int min_index;
-
-    min_index = preprocessing(pattern, 9);
-    printf("%d\n",min_index);
-    windowing(min_index,reference_seq,369,pattern,9,&windows);
-    printf("\nwindows %d\n", windows.count);
-    matching(reference_seq,pattern,9,&windows,&matches);
-
-    for(int i=0; i<matches.count; i++)
-        printf("Found a match at index %d\n", matches.idx[i]);
-
-}
-
-void fill_frequency_table(unsigned char *ref, int ref_size)
-{
     // Iterate words
     for(int i = 0; i < ref_size - WLEN; i++)
     {
@@ -110,9 +54,6 @@ void fill_frequency_table(unsigned char *ref, int ref_size)
     printf("\n");
 }
 
-/*
-    @brief  Finds the least frequent word in the pattern
-*/
 int preprocessing(unsigned char *pattern, unsigned int pattern_size)
 {
     int min_value = INT32_MAX;
@@ -147,9 +88,6 @@ int preprocessing(unsigned char *pattern, unsigned int pattern_size)
     return min_index;
 }
 
-/*
-    Defines windows in which to search
-*/
 void windowing(int min_index, unsigned char *text, unsigned int text_size, unsigned char *pattern, unsigned int pattern_size, struct index_tracker *windows)
 {
     for(int i=min_index; i<text_size-(pattern_size-min_index); i++)
@@ -169,9 +107,6 @@ void windowing(int min_index, unsigned char *text, unsigned int text_size, unsig
     }
 }
 
-/*
-    Returns the first indexes for all ocurrences of pattern 
-*/
 void matching(unsigned char *text, unsigned char *pattern, unsigned int pattern_size, struct index_tracker *windows, struct index_tracker *matches)
 {
     int num_match = 0;
